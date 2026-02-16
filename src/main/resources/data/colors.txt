@@ -1,0 +1,5 @@
+amber, aqua, azure, beige, black, blue, bronze, brown, cherry, coral,
+crimson, cyan, denim, ebony, emerald, forest, fuchsia, gold, gray, green,
+hazel, indigo, ivory, jade, khaki, lavender, lemon, lilac, lime, magenta,
+maroon, mint, navy, olive, orange, peach, pearl, pink, plum, purple,
+red, rose, ruby, salmon, silver, tan, teal, violet, white, yellow
