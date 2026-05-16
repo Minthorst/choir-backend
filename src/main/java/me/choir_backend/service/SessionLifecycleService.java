@@ -1,0 +1,68 @@
+package me.choir_backend.service;
+
+import jakarta.transaction.Transactional;
+import me.choir_backend.Boundary.EndSessionRequest;
+import me.choir_backend.Boundary.EndSessionResponse;
+import me.choir_backend.Exception.InsufficientTicketsException;
+import me.choir_backend.Exception.MemberAlreadyCheckedInException;
+import me.choir_backend.Exception.WrongSessionTypeException;
+import me.choir_backend.model.Member;
+import me.choir_backend.model.Session;
+import me.choir_backend.model.SessionType;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class SessionLifecycleService {
+private final MemberService memberService;
+private final SessionService sessionService;
+private final AttendanceService attendanceService;
+
+    public SessionLifecycleService(MemberService memberService, SessionService sessionService, AttendanceService attendanceService) {
+        this.memberService = memberService;
+        this.sessionService = sessionService;
+        this.attendanceService = attendanceService;
+    }
+
+    @Transactional
+    public void checkInMember(String secretKey) {
+        Member member = memberService.getMandatoryMember(secretKey);
+        Session currentSession = sessionService.getOrCreateActiveSession();
+        if (attendanceService.isAlreadyAttending(member, currentSession))
+            throw new MemberAlreadyCheckedInException(currentSession);
+        if (!member.hasEnoughTicketsForCheckin())
+            throw  new InsufficientTicketsException();
+        memberService.reduceMembersTicket(member);
+        memberService.saveMember(member);
+        attendanceService.saveAttendance(member, currentSession);
+    }
+
+
+    @Transactional
+    public EndSessionResponse finalizeSession(EndSessionRequest endSessionRequest) {
+        Session sessionToFinalize = sessionService.findMandatorySession(endSessionRequest.sessionId());
+        SessionType requestedSessionType = endSessionRequest.sessionType();
+        return switch (requestedSessionType) {
+            case AUTO_CLOSE,NONE ->
+                    throw new WrongSessionTypeException(String.format("Invalid Session Type for ending session %s!", requestedSessionType));
+            case REGULAR_ONLY -> {
+                sessionToFinalize.setOpen(false);
+                sessionToFinalize.setSessionType(SessionType.REGULAR_ONLY);
+                sessionService.saveSession(sessionToFinalize);
+                List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
+                yield new EndSessionResponse(attendedMemberList.size(), 0);
+            }
+            case COMMIT -> {
+                sessionToFinalize.setOpen(false);
+                sessionToFinalize.setSessionType(SessionType.COMMIT);
+                sessionService.saveSession(sessionToFinalize);
+                List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
+                List<Member> absentMembersWithCommitTickets = memberService.findAbsenteesWithCommitTickets(sessionToFinalize);
+                attendanceService.saveNoShowAttendance(absentMembersWithCommitTickets, sessionToFinalize);
+                memberService.reduceMembersTicketsAndSaveMembers(attendedMemberList);
+                yield new EndSessionResponse(attendedMemberList.size(), absentMembersWithCommitTickets.size());
+            }
+        };
+    }
+}

@@ -6,13 +6,19 @@ import jakarta.persistence.*;
 @Table(name = "members")
 public class Member {
 
+    final static Integer MINIMUM_TICKET_COUNT = -3;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Integer regularTickets = 0;
-    private Integer commitTickets = 0;
+    private int regularTickets = 0;
+    private int commitTickets = 0;
     private String name;
+
+    public String getSecretKey() {
+        return secretKey;
+    }
 
     @Column(unique = true, nullable = false)
     private String secretKey;
@@ -27,6 +33,10 @@ public class Member {
         this.commitTickets = commitTickets;
     }
 
+    public boolean hasEnoughTicketsForCheckin(){
+        return  (this.commitTickets + this.regularTickets > MINIMUM_TICKET_COUNT);
+    }
+
     public Integer getRegularTickets() {
         return regularTickets;
     }
@@ -37,5 +47,17 @@ public class Member {
 
     public String getName() {
         return name;
+    }
+
+    public void setRegularTickets(int regularTickets) {
+        this.regularTickets = regularTickets;
+    }
+
+    public void setCommitTickets(int commitTickets) {
+        this.commitTickets = commitTickets;
+    }
+
+    public Long getId() {
+        return id;
     }
 }

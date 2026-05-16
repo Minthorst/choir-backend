@@ -19,6 +19,9 @@ public class Attendance {
     @JoinColumn(name = "session_id")
     private Session session;
 
+    @Enumerated(EnumType.STRING)
+    private AttendanceStatus status;
+
     private LocalDateTime checkinTime;
 
     public Attendance() {}
@@ -27,9 +30,22 @@ public class Attendance {
         this.member = member;
         this.session = session;
         this.checkinTime = LocalDateTime.now();
+        this.status = AttendanceStatus.PRESENT;
     }
+
+    public Attendance(Member member, Session session, AttendanceStatus status) {
+        this.member = member;
+        this.session = session;
+        this.checkinTime = LocalDateTime.now();
+        this.status = status;
+    }
+
 
     public LocalDateTime getCheckinTime() {
         return checkinTime;
+    }
+
+    public AttendanceStatus getStatus() {
+        return status;
     }
 }
