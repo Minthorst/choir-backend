@@ -34,8 +34,13 @@ public class SessionLifecycleService {
     @Transactional
     public DoormanCheckInResponse checkInMemberById(Long memberId) {
         Member member = memberService.getMandatoryMemberById(memberId);
-        checkInMember(member);
-        return new DoormanCheckInResponse(member.getName(), member.getRegularTickets(), member.getCommitTickets());
+        boolean alreadyCheckedIn = false;
+        try {
+            checkInMember(member);
+        } catch (MemberAlreadyCheckedInException e) {
+            alreadyCheckedIn = true;
+        }
+        return new DoormanCheckInResponse(member.getName(), member.getRegularTickets(), member.getCommitTickets(), alreadyCheckedIn);
     }
 
     private void checkInMember(Member member) {
