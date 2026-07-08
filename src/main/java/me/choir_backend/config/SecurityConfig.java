@@ -10,6 +10,8 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -34,8 +36,10 @@ public class SecurityConfig {
                 })).csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/doorman/**").hasAnyRole("ADMIN", "DOORMAN")
+                        .requestMatchers("/doorman/**").hasRole("DOORMAN")
+                        .requestMatchers("/member/**").hasRole("MEMBER")
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(ex -> ex
@@ -61,32 +65,39 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        String adminUsername = System.getenv("ADMIN_USERNAME");
-        if (adminUsername == null) adminUsername = "ChorAdmin";
+    public PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
 
-        String adminPassword = System.getenv("ADMIN_PASSWORD");
-        if (adminPassword == null) adminPassword = "Chor2026";
-
-        String doormanUsername = System.getenv("DOORMAN_USERNAME");
-        if (doormanUsername == null) doormanUsername = "ChorDoorman";
+    @Bean
+    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
+        String memberPassword = System.getenv("MEMBER_PASSWORD");
+        if (memberPassword == null) memberPassword = "Chormitglied2026";
 
         String doormanPassword = System.getenv("DOORMAN_PASSWORD");
         if (doormanPassword == null) doormanPassword = "Einlass2026";
 
-        //TODO change this
-        UserDetails admin = User.withDefaultPasswordEncoder()
-                .username(adminUsername)
-                .password(adminPassword)
-                .roles("ADMIN")
+        String adminPassword = System.getenv("ADMIN_PASSWORD");
+        if (adminPassword == null) adminPassword = "Chor2026";
+
+        UserDetails member = User.builder()
+                .username("member")
+                .password(passwordEncoder.encode(memberPassword))
+                .roles("MEMBER")
                 .build();
 
-        UserDetails doorman = User.withDefaultPasswordEncoder()
-                .username(doormanUsername)
-                .password(doormanPassword)
-                .roles("DOORMAN")
+        UserDetails doorman = User.builder()
+                .username("doorman")
+                .password(passwordEncoder.encode(doormanPassword))
+                .roles("DOORMAN", "MEMBER")
                 .build();
 
-        return new InMemoryUserDetailsManager(admin, doorman);
+        UserDetails admin = User.builder()
+                .username("admin")
+                .password(passwordEncoder.encode(adminPassword))
+                .roles("ADMIN", "DOORMAN", "MEMBER")
+                .build();
+
+        return new InMemoryUserDetailsManager(member, doorman, admin);
     }
 }
