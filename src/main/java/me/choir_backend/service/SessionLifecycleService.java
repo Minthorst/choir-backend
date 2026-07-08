@@ -1,6 +1,7 @@
 package me.choir_backend.service;
 
 import jakarta.transaction.Transactional;
+import me.choir_backend.Boundary.DoormanCheckInResponse;
 import me.choir_backend.Boundary.EndSessionRequest;
 import me.choir_backend.Boundary.EndSessionResponse;
 import me.choir_backend.Exception.InsufficientTicketsException;
@@ -27,7 +28,17 @@ public class SessionLifecycleService {
 
     @Transactional
     public void checkInMember(String secretKey) {
-        Member member = memberService.getMandatoryMember(secretKey);
+        checkInMember(memberService.getMandatoryMember(secretKey));
+    }
+
+    @Transactional
+    public DoormanCheckInResponse checkInMemberById(Long memberId) {
+        Member member = memberService.getMandatoryMemberById(memberId);
+        checkInMember(member);
+        return new DoormanCheckInResponse(member.getName(), member.getRegularTickets(), member.getCommitTickets());
+    }
+
+    private void checkInMember(Member member) {
         sessionService.closeStaleSessions();
         Session activeSession = sessionService.getActiveSessionForCheckIn();
         if (attendanceService.isAlreadyAttending(member, activeSession))

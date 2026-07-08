@@ -34,6 +34,17 @@ public class MemberService {
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("No member with given secret key %s found", secretKey)));
     }
 
+    public Member getMandatoryMemberById(Long id) {
+        return memberRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format("No member with given ID %s found", id)));
+    }
+
+    public List<GetMemberNameResponse> getAllMemberNames() {
+        return memberRepository.findAll().stream()
+                .map(member -> new GetMemberNameResponse(member.getId(), member.getName()))
+                .toList();
+    }
+
     public GetMemberInfoResponse getMemberInfo(String secretKey) {
         Member member = getMandatoryMember(secretKey);
         List<Attendance> pastAttendances = attendanceService.findAttendances(member);

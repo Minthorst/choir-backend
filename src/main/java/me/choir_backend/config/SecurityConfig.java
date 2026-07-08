@@ -34,7 +34,8 @@ public class SecurityConfig {
                 })).csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/admin/**").authenticated()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/doorman/**").hasAnyRole("ADMIN", "DOORMAN")
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(ex -> ex
@@ -67,6 +68,12 @@ public class SecurityConfig {
         String adminPassword = System.getenv("ADMIN_PASSWORD");
         if (adminPassword == null) adminPassword = "Chor2026";
 
+        String doormanUsername = System.getenv("DOORMAN_USERNAME");
+        if (doormanUsername == null) doormanUsername = "ChorDoorman";
+
+        String doormanPassword = System.getenv("DOORMAN_PASSWORD");
+        if (doormanPassword == null) doormanPassword = "Einlass2026";
+
         //TODO change this
         UserDetails admin = User.withDefaultPasswordEncoder()
                 .username(adminUsername)
@@ -74,6 +81,12 @@ public class SecurityConfig {
                 .roles("ADMIN")
                 .build();
 
-        return new InMemoryUserDetailsManager(admin);
+        UserDetails doorman = User.withDefaultPasswordEncoder()
+                .username(doormanUsername)
+                .password(doormanPassword)
+                .roles("DOORMAN")
+                .build();
+
+        return new InMemoryUserDetailsManager(admin, doorman);
     }
 }
