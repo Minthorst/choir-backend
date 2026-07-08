@@ -3,6 +3,7 @@ package me.choir_backend.repository;
 import jakarta.persistence.LockModeType;
 import me.choir_backend.Boundary.GetSessionResponse;
 import me.choir_backend.model.Session;
+import me.choir_backend.model.SessionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -24,6 +25,9 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             "ORDER BY s.startTime DESC")
     List<GetSessionResponse> findAllSessionsWithAttendeeCount();
 
-    @Query("SELECT s FROM Session s WHERE s.isOpen = true OR s.sessionType = SessionType.AUTO_CLOSE")
-    List<Session> getForgottenAndUnfinalizedSessions();
+    List<Session> findAllBySessionType(SessionType sessionType);
+
+    Optional<Session> findFirstByIsOpen(Boolean isOpen);
+
+    List<Session> findAllByIsOpen(boolean b);
 }

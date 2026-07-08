@@ -48,4 +48,8 @@ public class Attendance {
     public AttendanceStatus getStatus() {
         return status;
     }
+
+    public Session getSession() {
+        return session;
+    }
 }

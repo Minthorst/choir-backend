@@ -19,12 +19,14 @@ public class MemberService {
 
     final MemberKeyGeneratorService memberKeyGeneratorService;
     private final AttendanceService attendanceService;
+    private final SessionService sessionService;
 
 
-    public MemberService(MemberRepository memberRepository, MemberKeyGeneratorService memberKeyGeneratorService, AttendanceService attendanceService) {
+    public MemberService(MemberRepository memberRepository, MemberKeyGeneratorService memberKeyGeneratorService, AttendanceService attendanceService, SessionService sessionService) {
         this.memberRepository = memberRepository;
         this.memberKeyGeneratorService = memberKeyGeneratorService;
         this.attendanceService = attendanceService;
+        this.sessionService = sessionService;
     }
 
     public Member getMandatoryMember(String secretKey) {
@@ -35,11 +37,15 @@ public class MemberService {
     public GetMemberInfoResponse getMemberInfo(String secretKey) {
         Member member = getMandatoryMember(secretKey);
         List<Attendance> pastAttendances = attendanceService.findAttendances(member);
+        Session activeSession = sessionService.getActiveSession();
+        boolean checkedIn = activeSession != null && pastAttendances.stream()
+                .anyMatch(a -> a.getSession().getId().equals(activeSession.getId()));
         return new GetMemberInfoResponse(
                 member.getName(),
                 member.getRegularTickets(),
                 member.getCommitTickets(),
-                toAttendanceDTOList(pastAttendances)
+                toAttendanceDTOList(pastAttendances),
+                checkedIn
         );
     }
 

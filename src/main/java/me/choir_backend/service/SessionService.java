@@ -22,33 +22,36 @@ public class SessionService {
 
     @Transactional
     public List<Session> closeOpenAndGetNotYetFinalizedSessions() {
-        List<Session> sessions = sessionRepository.getForgottenAndUnfinalizedSessions();
-        sessions.forEach(this::closeAndSaveOpenSession);
-        return sessions;
+        closeStaleSessions();
+        return sessionRepository.findAllBySessionType(SessionType.AUTO_CLOSE);
     }
 
-    private void closeAndSaveOpenSession(Session session) {
-        if(session.isExpired()){
-            session.setOpen(false);
-            session.setSessionType(SessionType.AUTO_CLOSE);
-            saveSession(session);
-        }
-    }
 
-    public Session getOrCreateActiveSession() {
-        Optional<Session> activeSessionOptional = sessionRepository.findFirstByIsOpenWithLock();
-        if (activeSessionOptional.isEmpty()) {
-            return createAndSaveNewSession();
-        } else if (activeSessionOptional.get().isExpired()) {
-            Session expiredSession = activeSessionOptional.get();
-            expiredSession.setOpen(false);
-            expiredSession.setSessionType(SessionType.AUTO_CLOSE);
-            sessionRepository.save(expiredSession);
-            return createAndSaveNewSession();
+    public Session getActiveSession() {
+        Optional<Session> activeSessionOptional = sessionRepository.findFirstByIsOpen(true);
+        if (activeSessionOptional.isEmpty() || activeSessionOptional.get().isExpired()) {
+            return null;
         } else return activeSessionOptional.get();
     }
 
-    private Session createAndSaveNewSession() {
+    public Session getActiveSessionForCheckIn() {
+        Optional<Session> activeSessionOptional = sessionRepository.findFirstByIsOpenWithLock();
+        return activeSessionOptional.orElseGet(this::createAndSaveNewSession);
+    }
+
+
+    public void closeStaleSessions() {
+        List<Session> activeSessions = sessionRepository.findAllByIsOpen(true);
+        for (Session session : activeSessions) {
+            if (session.isExpired()) {
+                session.setOpen(false);
+                session.setSessionType(SessionType.AUTO_CLOSE);
+                sessionRepository.save(session);
+            }
+        }
+    }
+
+    public Session createAndSaveNewSession() {
         return sessionRepository.save(new Session());
     }
 

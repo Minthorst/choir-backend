@@ -15,9 +15,9 @@ import java.util.List;
 
 @Service
 public class SessionLifecycleService {
-private final MemberService memberService;
-private final SessionService sessionService;
-private final AttendanceService attendanceService;
+    private final MemberService memberService;
+    private final SessionService sessionService;
+    private final AttendanceService attendanceService;
 
     public SessionLifecycleService(MemberService memberService, SessionService sessionService, AttendanceService attendanceService) {
         this.memberService = memberService;
@@ -28,14 +28,15 @@ private final AttendanceService attendanceService;
     @Transactional
     public void checkInMember(String secretKey) {
         Member member = memberService.getMandatoryMember(secretKey);
-        Session currentSession = sessionService.getOrCreateActiveSession();
-        if (attendanceService.isAlreadyAttending(member, currentSession))
-            throw new MemberAlreadyCheckedInException(currentSession);
+        sessionService.closeStaleSessions();
+        Session activeSession = sessionService.getActiveSessionForCheckIn();
+        if (attendanceService.isAlreadyAttending(member, activeSession))
+            throw new MemberAlreadyCheckedInException(activeSession);
         if (!member.hasEnoughTicketsForCheckin())
-            throw  new InsufficientTicketsException();
+            throw new InsufficientTicketsException();
         memberService.reduceMembersTicket(member);
         memberService.saveMember(member);
-        attendanceService.saveAttendance(member, currentSession);
+        attendanceService.saveAttendance(member, activeSession);
     }
 
 
@@ -44,7 +45,7 @@ private final AttendanceService attendanceService;
         Session sessionToFinalize = sessionService.findMandatorySession(endSessionRequest.sessionId());
         SessionType requestedSessionType = endSessionRequest.sessionType();
         return switch (requestedSessionType) {
-            case AUTO_CLOSE,NONE ->
+            case AUTO_CLOSE, NONE ->
                     throw new WrongSessionTypeException(String.format("Invalid Session Type for ending session %s!", requestedSessionType));
             case REGULAR_ONLY -> {
                 sessionToFinalize.setOpen(false);
@@ -60,7 +61,7 @@ private final AttendanceService attendanceService;
                 List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
                 List<Member> absentMembersWithCommitTickets = memberService.findAbsenteesWithCommitTickets(sessionToFinalize);
                 attendanceService.saveNoShowAttendance(absentMembersWithCommitTickets, sessionToFinalize);
-                memberService.reduceMembersTicketsAndSaveMembers(attendedMemberList);
+                memberService.reduceMembersTicketsAndSaveMembers(absentMembersWithCommitTickets);
                 yield new EndSessionResponse(attendedMemberList.size(), absentMembersWithCommitTickets.size());
             }
         };
