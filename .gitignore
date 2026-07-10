@@ -33,3 +33,5 @@ build/
 
 ### VS Code ###
 .vscode/
+/.claude/worktrees/intelligent-goldstine-80ba67/
+/.claude/worktrees/kind-booth-f23cf6/
