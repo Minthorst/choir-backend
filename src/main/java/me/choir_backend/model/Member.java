@@ -14,6 +14,8 @@ public class Member {
 
     private int regularTickets = 0;
     private int commitTickets = 0;
+
+    @Column(unique = true, nullable = false)
     private String name;
 
     public String getSecretKey() {

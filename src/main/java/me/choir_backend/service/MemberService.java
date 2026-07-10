@@ -2,6 +2,7 @@ package me.choir_backend.service;
 
 import jakarta.transaction.Transactional;
 import me.choir_backend.Boundary.*;
+import me.choir_backend.Exception.DuplicateMemberNameException;
 import me.choir_backend.Exception.ResourceNotFoundException;
 import me.choir_backend.model.Attendance;
 import me.choir_backend.model.Member;
@@ -69,10 +70,14 @@ public class MemberService {
 
     @Transactional
     public CreateMemberResponse createMember(CreateMemberRequest createMemberRequest) {
+        String name = createMemberRequest.name().trim();
+        if (memberRepository.existsByNameIgnoreCase(name)) {
+            throw new DuplicateMemberNameException(name);
+        }
         String memberKey = memberKeyGeneratorService.generateUnique();
 
         Member member = new Member(
-                createMemberRequest.name(),
+                name,
                 memberKey,
                 createMemberRequest.regularTickets(),
                 createMemberRequest.commitTickets());

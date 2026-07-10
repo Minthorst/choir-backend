@@ -1,3 +1,8 @@
 package me.choir_backend.Boundary;
 
-public record CreateMemberRequest(String name, Integer regularTickets, Integer commitTickets) {}
+import jakarta.validation.constraints.NotBlank;
+
+public record CreateMemberRequest(
+        @NotBlank String name,
+        Integer regularTickets,
+        Integer commitTickets) {}

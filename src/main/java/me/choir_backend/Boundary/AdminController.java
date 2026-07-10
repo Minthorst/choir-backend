@@ -1,5 +1,6 @@
     package me.choir_backend.Boundary;
 
+    import jakarta.validation.Valid;
     import me.choir_backend.service.MemberService;
     import me.choir_backend.service.SessionLifecycleService;
     import me.choir_backend.service.SessionService;
@@ -22,12 +23,12 @@
         }
 
         @PostMapping("/finalizeSession")
-        public EndSessionResponse finalizeSession(@RequestBody EndSessionRequest endSessionRequest){
+        public EndSessionResponse finalizeSession(@Valid @RequestBody EndSessionRequest endSessionRequest){
             return sessionLifecycleService.finalizeSession(endSessionRequest);
         }
 
         @PostMapping("/member")
-        public CreateMemberResponse createMember(@RequestBody CreateMemberRequest createMemberRequest) {
+        public CreateMemberResponse createMember(@Valid @RequestBody CreateMemberRequest createMemberRequest) {
             return memberService.createMember(createMemberRequest);
         }
 
@@ -37,7 +38,7 @@
         }
 
         @PostMapping("/tickets")
-        public void addTickets(@RequestBody AddTicketsRequest addTicketsRequest){
+        public void addTickets(@Valid @RequestBody AddTicketsRequest addTicketsRequest){
             memberService.addTickets(addTicketsRequest);
         }
 

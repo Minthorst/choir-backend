@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -15,12 +16,16 @@ import java.util.Random;
 @Service
 public class MemberKeyGeneratorService {
 
-    @Autowired
+    final
     MemberRepository memberRepository;
 
     private List<String> colors;
     private List<String> artists;
-    private final Random random = new Random();
+    private final SecureRandom random = new SecureRandom();
+
+    public MemberKeyGeneratorService(MemberRepository memberRepository) {
+        this.memberRepository = memberRepository;
+    }
 
     @PostConstruct
     public void init() throws IOException {

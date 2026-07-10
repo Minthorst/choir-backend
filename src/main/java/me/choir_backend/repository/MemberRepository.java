@@ -12,6 +12,8 @@ import java.util.Optional;
 public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findBySecretKey(String secretKey);
 
+    boolean existsByNameIgnoreCase(String name);
+
     @Query("SELECT m FROM Member m WHERE m.commitTickets > 0 AND m NOT IN " +
             "(SELECT a.member FROM Attendance a WHERE a.session = :session)")
     List<Member> findAbsenteesWithCommitTicketsBySession(@Param("session") Session session);
