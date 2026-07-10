@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -16,15 +15,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @EnableWebSecurity
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, LoginRateLimitFilter loginRateLimitFilter,
+                                                   LoginAttemptService loginAttemptService) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
@@ -36,14 +38,18 @@ public class SecurityConfig {
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
 
-                .httpBasic(Customizer.withDefaults())
-
                 .formLogin(form -> form
                         .loginProcessingUrl("/api/login")
                         .usernameParameter("username")
                         .passwordParameter("password")
-                        .successHandler((request, response, authentication) -> response.setStatus(HttpStatus.OK.value()))
-                        .failureHandler((request, response, exception) -> response.setStatus(HttpStatus.UNAUTHORIZED.value()))
+                        .successHandler((request, response, authentication) -> {
+                            loginAttemptService.loginSucceeded(LoginRateLimitFilter.clientIp(request));
+                            response.setStatus(HttpStatus.OK.value());
+                        })
+                        .failureHandler((request, response, exception) -> {
+                            loginAttemptService.loginFailed(LoginRateLimitFilter.clientIp(request));
+                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                        })
                 )
 
                 .logout(logout -> logout
