@@ -4,7 +4,6 @@ import me.choir_backend.service.MemberService;
 import me.choir_backend.service.SessionLifecycleService;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/member")
 public class MemberController {
