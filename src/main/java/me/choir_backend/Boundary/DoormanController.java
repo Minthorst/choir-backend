@@ -24,6 +24,11 @@ public class DoormanController {
         return memberService.getAllMemberNames();
     }
 
+    @GetMapping("/checkedin")
+    public List<GetMemberNameResponse> getCheckedInMemberNames() {
+        return memberService.getCheckedInMemberNames();
+    }
+
     @PostMapping("/checkin/{id}")
     public DoormanCheckInResponse checkInMemberById(@PathVariable Long id) {
         return sessionLifecycleService.checkInMemberById(id);

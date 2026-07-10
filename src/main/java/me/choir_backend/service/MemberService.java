@@ -116,6 +116,14 @@ public class MemberService {
         return attendingMembers.stream().map(m -> toAdminMemberInfoResponse(m, activeSession)).toList();
     }
 
+    public List<GetMemberNameResponse> getCheckedInMemberNames() {
+        Session activeSession = sessionService.getActiveSession();
+        if (activeSession == null) return List.of();
+        return attendanceService.findMembersBySession(activeSession.getId()).stream()
+                .map(m -> new GetMemberNameResponse(m.getId(), m.getName()))
+                .toList();
+    }
+
     public void saveMembers(List<Member> members) {
         memberRepository.saveAll(members);
     }
