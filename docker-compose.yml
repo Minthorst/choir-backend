@@ -27,6 +27,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      - TZ=Europe/Berlin
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/choir
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
