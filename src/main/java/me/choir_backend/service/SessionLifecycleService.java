@@ -59,27 +59,31 @@ public class SessionLifecycleService {
     @Transactional
     public EndSessionResponse finalizeSession(EndSessionRequest endSessionRequest) {
         Session sessionToFinalize = sessionService.findMandatorySession(endSessionRequest.sessionId());
+        SessionType currentSessionType = sessionToFinalize.getSessionType();
         SessionType requestedSessionType = endSessionRequest.sessionType();
-        return switch (requestedSessionType) {
-            case AUTO_CLOSE, NONE ->
-                    throw new WrongSessionTypeException(String.format("Invalid Session Type for ending session %s!", requestedSessionType));
-            case REGULAR_ONLY -> {
-                sessionToFinalize.setOpen(false);
-                sessionToFinalize.setSessionType(SessionType.REGULAR_ONLY);
-                sessionService.saveSession(sessionToFinalize);
-                List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
-                yield new EndSessionResponse(attendedMemberList.size(), 0);
-            }
-            case COMMIT -> {
-                sessionToFinalize.setOpen(false);
-                sessionToFinalize.setSessionType(SessionType.COMMIT);
-                sessionService.saveSession(sessionToFinalize);
-                List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
-                List<Member> absentMembersWithCommitTickets = memberService.findAbsenteesWithCommitTickets(sessionToFinalize);
-                attendanceService.saveNoShowAttendance(absentMembersWithCommitTickets, sessionToFinalize);
-                memberService.reduceMembersTicketsAndSaveMembers(absentMembersWithCommitTickets);
-                yield new EndSessionResponse(attendedMemberList.size(), absentMembersWithCommitTickets.size());
-            }
-        };
+        if (currentSessionType == SessionType.COMMIT || currentSessionType == SessionType.REGULAR_ONLY) {
+            throw new WrongSessionTypeException(String.format("Invalid current Session Type for ending session %s!", currentSessionType));
+        }
+            return switch (requestedSessionType) {
+                case AUTO_CLOSE, NONE ->
+                        throw new WrongSessionTypeException(String.format("Invalid requested Session Type for ending session %s!", requestedSessionType));
+                case REGULAR_ONLY -> {
+                    sessionToFinalize.setOpen(false);
+                    sessionToFinalize.setSessionType(SessionType.REGULAR_ONLY);
+                    sessionService.saveSession(sessionToFinalize);
+                    List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
+                    yield new EndSessionResponse(attendedMemberList.size(), 0);
+                }
+                case COMMIT -> {
+                    sessionToFinalize.setOpen(false);
+                    sessionToFinalize.setSessionType(SessionType.COMMIT);
+                    sessionService.saveSession(sessionToFinalize);
+                    List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
+                    List<Member> absentMembersWithCommitTickets = memberService.findAbsenteesWithCommitTickets(sessionToFinalize);
+                    attendanceService.saveNoShowAttendance(absentMembersWithCommitTickets, sessionToFinalize);
+                    memberService.reduceMembersTicketsAndSaveMembers(absentMembersWithCommitTickets);
+                    yield new EndSessionResponse(attendedMemberList.size(), absentMembersWithCommitTickets.size());
+                }
+            };
+        }
     }
-}

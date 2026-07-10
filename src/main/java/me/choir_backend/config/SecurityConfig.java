@@ -1,5 +1,6 @@
 package me.choir_backend.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -59,16 +60,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        String memberPassword = System.getenv("MEMBER_PASSWORD");
-        if (memberPassword == null) memberPassword = "Chormitglied2026";
-
-        String doormanPassword = System.getenv("DOORMAN_PASSWORD");
-        if (doormanPassword == null) doormanPassword = "Einlass2026";
-
-        String adminPassword = System.getenv("ADMIN_PASSWORD");
-        if (adminPassword == null) adminPassword = "Chor2026";
-
+    public UserDetailsService userDetailsService(
+            PasswordEncoder passwordEncoder,
+            @Value("${MEMBER_PASSWORD}") String memberPassword,
+            @Value("${DOORMAN_PASSWORD}") String doormanPassword,
+            @Value("${ADMIN_PASSWORD}") String adminPassword) {
         UserDetails member = User.builder()
                 .username("member")
                 .password(passwordEncoder.encode(memberPassword))
