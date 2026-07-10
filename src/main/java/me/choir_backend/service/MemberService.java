@@ -92,11 +92,13 @@ public class MemberService {
 
     public List<GetAdminMemberInfoResponse> getAllMembersWithSecret() {
         List<Member> allMembers = memberRepository.findAll();
-        return allMembers.stream().map(this::toAdminMemberInfoResponse).toList();
+        Session activeSession = sessionService.getActiveSession();
+        return allMembers.stream().map(m -> toAdminMemberInfoResponse(m, activeSession)).toList();
     }
 
-    private GetAdminMemberInfoResponse toAdminMemberInfoResponse(Member member) {
-        return new GetAdminMemberInfoResponse(member.getId(), member.getName(), member.getRegularTickets(), member.getCommitTickets(), member.getSecretKey());
+    private GetAdminMemberInfoResponse toAdminMemberInfoResponse(Member member, Session activeSession) {
+        boolean checkedIn = activeSession != null && attendanceService.isAlreadyAttending(member, activeSession);
+        return new GetAdminMemberInfoResponse(member.getId(), member.getName(), member.getRegularTickets(), member.getCommitTickets(), member.getSecretKey(), checkedIn);
     }
 
     @Transactional
@@ -110,7 +112,8 @@ public class MemberService {
 
     public List<GetAdminMemberInfoResponse> getAllMembersOfSession(Long sessionId) {
         List<Member> attendingMembers = attendanceService.findMembersBySession(sessionId);
-        return attendingMembers.stream().map(this::toAdminMemberInfoResponse).toList();
+        Session activeSession = sessionService.getActiveSession();
+        return attendingMembers.stream().map(m -> toAdminMemberInfoResponse(m, activeSession)).toList();
     }
 
     public void saveMembers(List<Member> members) {
