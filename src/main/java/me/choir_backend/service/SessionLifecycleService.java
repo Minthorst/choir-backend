@@ -61,7 +61,8 @@ public class SessionLifecycleService {
         Session sessionToFinalize = sessionService.findMandatorySession(endSessionRequest.sessionId());
         SessionType currentSessionType = sessionToFinalize.getSessionType();
         SessionType requestedSessionType = endSessionRequest.sessionType();
-        if (currentSessionType == SessionType.COMMIT || currentSessionType == SessionType.REGULAR_ONLY) {
+        if (currentSessionType == SessionType.COMMIT || currentSessionType == SessionType.REGULAR_ONLY
+                || currentSessionType == SessionType.FREE) {
             throw new WrongSessionTypeException(String.format("Invalid current Session Type for ending session %s!", currentSessionType));
         }
             return switch (requestedSessionType) {
@@ -83,6 +84,14 @@ public class SessionLifecycleService {
                     attendanceService.saveNoShowAttendance(absentMembersWithCommitTickets, sessionToFinalize);
                     memberService.reduceMembersTicketsAndSaveMembers(absentMembersWithCommitTickets);
                     yield new EndSessionResponse(attendedMemberList.size(), absentMembersWithCommitTickets.size());
+                }
+                case FREE -> {
+                    sessionToFinalize.setOpen(false);
+                    sessionToFinalize.setSessionType(SessionType.FREE);
+                    sessionService.saveSession(sessionToFinalize);
+                    List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
+                    memberService.refundRegularTicketsAndSaveMembers(attendedMemberList);
+                    yield new EndSessionResponse(attendedMemberList.size(), 0);
                 }
             };
         }

@@ -143,6 +143,11 @@ public class MemberService {
         saveMembers(members);
     }
 
+    public void refundRegularTicketsAndSaveMembers(List<Member> members) {
+        members.forEach(member -> member.setRegularTickets(member.getRegularTickets() + 1));
+        saveMembers(members);
+    }
+
     public void saveMember(Member member) {
         memberRepository.save(member);
     }
