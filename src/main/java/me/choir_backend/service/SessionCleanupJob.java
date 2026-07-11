@@ -45,7 +45,7 @@ public class SessionCleanupJob {
 
         String text = "Moin Niklas,\n\n" +
                 amountOfNotFinalSessions + " Probe/n wurden noch nicht händisch beendet.\n" +
-                "Das System hat die Sessions automatisch geschlossen (AUTO_CLOSE).\n\n" +
+                "Es gibt Sessions die noch nicht von dir finalisiert worden sind\n\n" +
                 "Bitte klicke auf den folgende Link und teile den korrekten Status zu, um die Tickets für die anwesenden/abwesenden " +
                 "Mitglieder final abzurechnen (COMMIT oder REGULAR):\n\n" +
                 frontendUrl + "/admin\n\n" +
