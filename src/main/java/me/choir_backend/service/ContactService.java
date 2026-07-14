@@ -1,6 +1,8 @@
 package me.choir_backend.service;
 
 import me.choir_backend.Boundary.ContactRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -14,6 +16,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class ContactService {
+    private static final Logger log = LoggerFactory.getLogger(ContactService.class);
 
     private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -37,6 +40,7 @@ public class ContactService {
         message.setSubject("Nofomo Feedback von " + request.name());
         message.setText(buildBody(request, authentication));
         mailSender.send(message);
+        log.info("Feedback mail sent to {} (from '{}')", adminFeedbackEmail, request.name());
     }
 
     private String buildBody(ContactRequest request, Authentication authentication) {

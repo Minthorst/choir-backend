@@ -6,6 +6,8 @@ import me.choir_backend.Exception.ResourceNotFoundException;
 import me.choir_backend.model.Session;
 import me.choir_backend.model.SessionType;
 import me.choir_backend.repository.SessionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.Optional;
 
 @Service
 public class SessionService {
+    private static final Logger log = LoggerFactory.getLogger(SessionService.class);
 
     private final SessionRepository sessionRepository;
 
@@ -47,12 +50,15 @@ public class SessionService {
                 session.setOpen(false);
                 session.setSessionType(SessionType.AUTO_CLOSE);
                 sessionRepository.save(session);
+                log.warn("Auto-closed stale session {} (started {})", session.getId(), session.getStartTime());
             }
         }
     }
 
     public Session createAndSaveNewSession() {
-        return sessionRepository.save(new Session());
+        Session session = sessionRepository.save(new Session());
+        log.info("Opened new session {}", session.getId());
+        return session;
     }
 
     public void saveSession(Session session) {

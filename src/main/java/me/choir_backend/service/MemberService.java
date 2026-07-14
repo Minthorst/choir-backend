@@ -8,12 +8,15 @@ import me.choir_backend.model.Attendance;
 import me.choir_backend.model.Member;
 import me.choir_backend.model.Session;
 import me.choir_backend.repository.MemberRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 public class MemberService {
+    private static final Logger log = LoggerFactory.getLogger(MemberService.class);
 
     final MemberRepository memberRepository;
 
@@ -82,6 +85,7 @@ public class MemberService {
                 createMemberRequest.regularTickets(),
                 createMemberRequest.commitTickets());
         memberRepository.save(member);
+        log.info("Created member '{}'", name);
         return new CreateMemberResponse(memberKey);
     }
 
@@ -113,6 +117,9 @@ public class MemberService {
         member.setRegularTickets(member.getRegularTickets() + addTicketsRequest.regularTickets());
         member.setCommitTickets(member.getCommitTickets() + addTicketsRequest.commitTickets());
         memberRepository.save(member);
+        log.info("Added {} regular / {} commit tickets to member '{}' (now {} / {})",
+                addTicketsRequest.regularTickets(), addTicketsRequest.commitTickets(),
+                member.getName(), member.getRegularTickets(), member.getCommitTickets());
     }
 
     public List<GetAdminMemberInfoResponse> getAllMembersOfSession(Long sessionId) {

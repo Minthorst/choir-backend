@@ -10,12 +10,16 @@ import me.choir_backend.Exception.WrongSessionTypeException;
 import me.choir_backend.model.Member;
 import me.choir_backend.model.Session;
 import me.choir_backend.model.SessionType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 public class SessionLifecycleService {
+    private static final Logger log = LoggerFactory.getLogger(SessionLifecycleService.class);
+
     private final MemberService memberService;
     private final SessionService sessionService;
     private final AttendanceService attendanceService;
@@ -53,6 +57,8 @@ public class SessionLifecycleService {
         memberService.reduceMembersTicket(member);
         memberService.saveMember(member);
         attendanceService.saveAttendance(member, activeSession);
+        log.info("Checked in member '{}' to session {} ({} regular / {} commit tickets left)",
+                member.getName(), activeSession.getId(), member.getRegularTickets(), member.getCommitTickets());
     }
 
 
@@ -65,7 +71,7 @@ public class SessionLifecycleService {
                 || currentSessionType == SessionType.FREE) {
             throw new WrongSessionTypeException(String.format("Invalid current Session Type for ending session %s!", currentSessionType));
         }
-            return switch (requestedSessionType) {
+            EndSessionResponse response = switch (requestedSessionType) {
                 case AUTO_CLOSE, NONE ->
                         throw new WrongSessionTypeException(String.format("Invalid requested Session Type for ending session %s!", requestedSessionType));
                 case REGULAR_ONLY -> {
@@ -94,5 +100,8 @@ public class SessionLifecycleService {
                     yield new EndSessionResponse(attendedMemberList.size(), 0);
                 }
             };
+            log.info("Finalized session {} as {}: {} attendees, {} absent commit members charged",
+                    sessionToFinalize.getId(), requestedSessionType, response.presentMembers(), response.absentCommitMembers());
+            return response;
         }
     }

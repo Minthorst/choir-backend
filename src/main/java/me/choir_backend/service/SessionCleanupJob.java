@@ -1,6 +1,8 @@
 package me.choir_backend.service;
 
 import me.choir_backend.model.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -11,6 +13,7 @@ import java.util.List;
 
 @Service
 public class SessionCleanupJob {
+    private static final Logger log = LoggerFactory.getLogger(SessionCleanupJob.class);
 
     private final SessionService sessionService;
     private final JavaMailSender mailSender;
@@ -33,8 +36,15 @@ public class SessionCleanupJob {
     @Scheduled(cron = "0 0 3 * * ?")
     public void cleanupForgottenSessions() {
         List<Session> forgottenSessions = sessionService.closeOpenAndGetNotYetFinalizedSessions();
-        if (forgottenSessions != null && !forgottenSessions.isEmpty())
-            sendNotificationEmail(forgottenSessions.size());
+        if (forgottenSessions != null && !forgottenSessions.isEmpty()) {
+            log.info("Nightly cleanup found {} session(s) awaiting finalization, notifying {}",
+                    forgottenSessions.size(), chorleiterEmail);
+            try {
+                sendNotificationEmail(forgottenSessions.size());
+            } catch (Exception e) {
+                log.error("Failed to send finalization-reminder mail to {}", chorleiterEmail, e);
+            }
+        }
     }
 
     private void sendNotificationEmail(int amountOfNotFinalSessions) {
