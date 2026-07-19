@@ -70,7 +70,7 @@ class ChoirFlowE2ETest {
     void fullSessionLifecycle() throws Exception {
         // Admin creates three members
         String annaKey = createMember("Anna", 1, 1);
-        createMember("Ben", 0, 2);
+        String benKey = createMember("Ben", 0, 2);
         String caraKey = createMember("Cara", 1, 0);
 
         // Duplicate names are rejected with 409
@@ -180,5 +180,42 @@ class ChoirFlowE2ETest {
         mockMvc.perform(post("/member/checkin/" + caraKey).with(member()).with(csrf()))
                 .andExpect(status().isOk());
         assertEquals(-1, adminMemberByName("Cara").get("regularTickets").asInt());
+
+        // Anna's ticket log shows her check-in (commit spent first) and one Init row per ticket type
+        mockMvc.perform(get("/member/" + annaKey + "/ticketlog").with(member()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].type").value("CHECK_IN"))
+                .andExpect(jsonPath("$[0].commitDelta").value(-1))
+                .andExpect(jsonPath("$[0].regularDelta").value(0))
+                .andExpect(jsonPath("$[1].type").value("INITIAL_BALANCE"))
+                .andExpect(jsonPath("$[1].commitDelta").value(1))
+                .andExpect(jsonPath("$[1].regularDelta").value(0))
+                .andExpect(jsonPath("$[2].type").value("INITIAL_BALANCE"))
+                .andExpect(jsonPath("$[2].regularDelta").value(1))
+                .andExpect(jsonPath("$[2].commitDelta").value(0));
+
+        // Ben's full log includes the no-show charge from the COMMIT finalize
+        mockMvc.perform(get("/member/" + benKey + "/ticketlog").with(member()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].type").value("ADMIN_ADJUSTMENT"))
+                .andExpect(jsonPath("$[0].regularDelta").value(5))
+                .andExpect(jsonPath("$[0].commitDelta").value(2))
+                .andExpect(jsonPath("$[1].type").value("NO_SHOW_CHARGE"))
+                .andExpect(jsonPath("$[1].commitDelta").value(-1))
+                .andExpect(jsonPath("$[2].type").value("INITIAL_BALANCE"));
+
+        // The admin view of Ben's log matches the member view, including session charges
+        mockMvc.perform(get("/admin/members/" + ben.get("id").asLong() + "/ticketlog").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].type").value("ADMIN_ADJUSTMENT"))
+                .andExpect(jsonPath("$[1].type").value("NO_SHOW_CHARGE"))
+                .andExpect(jsonPath("$[2].type").value("INITIAL_BALANCE"));
+
+        // The ticket log of an unknown member yields 404
+        mockMvc.perform(get("/member/does-not-exist/ticketlog").with(member()))
+                .andExpect(status().isNotFound());
     }
 }

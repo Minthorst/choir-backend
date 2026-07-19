@@ -10,6 +10,7 @@ import me.choir_backend.Exception.WrongSessionTypeException;
 import me.choir_backend.model.Member;
 import me.choir_backend.model.Session;
 import me.choir_backend.model.SessionType;
+import me.choir_backend.model.TicketTransactionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,11 +24,13 @@ public class SessionLifecycleService {
     private final MemberService memberService;
     private final SessionService sessionService;
     private final AttendanceService attendanceService;
+    private final TicketLogService ticketLogService;
 
-    public SessionLifecycleService(MemberService memberService, SessionService sessionService, AttendanceService attendanceService) {
+    public SessionLifecycleService(MemberService memberService, SessionService sessionService, AttendanceService attendanceService, TicketLogService ticketLogService) {
         this.memberService = memberService;
         this.sessionService = sessionService;
         this.attendanceService = attendanceService;
+        this.ticketLogService = ticketLogService;
     }
 
     @Transactional
@@ -54,8 +57,9 @@ public class SessionLifecycleService {
             throw new MemberAlreadyCheckedInException(activeSession);
         if (!member.hasEnoughTicketsForCheckin())
             throw new InsufficientTicketsException();
-        memberService.reduceMembersTicket(member);
+        TicketDelta delta = memberService.reduceMembersTicket(member);
         memberService.saveMember(member);
+        ticketLogService.record(member, delta, TicketTransactionType.CHECK_IN, activeSession);
         attendanceService.saveAttendance(member, activeSession);
         log.info("Checked in member '{}' to session {} ({} regular / {} commit tickets left)",
                 member.getName(), activeSession.getId(), member.getRegularTickets(), member.getCommitTickets());
@@ -88,7 +92,11 @@ public class SessionLifecycleService {
                     List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
                     List<Member> absentMembersWithCommitTickets = memberService.findAbsenteesWithCommitTickets(sessionToFinalize);
                     attendanceService.saveNoShowAttendance(absentMembersWithCommitTickets, sessionToFinalize);
-                    memberService.reduceMembersTicketsAndSaveMembers(absentMembersWithCommitTickets);
+                    for (Member absentee : absentMembersWithCommitTickets) {
+                        TicketDelta delta = memberService.reduceMembersTicket(absentee);
+                        ticketLogService.record(absentee, delta, TicketTransactionType.NO_SHOW_CHARGE, sessionToFinalize);
+                    }
+                    memberService.saveMembers(absentMembersWithCommitTickets);
                     yield new EndSessionResponse(attendedMemberList.size(), absentMembersWithCommitTickets.size());
                 }
                 case FREE -> {
@@ -96,7 +104,11 @@ public class SessionLifecycleService {
                     sessionToFinalize.setSessionType(SessionType.FREE);
                     sessionService.saveSession(sessionToFinalize);
                     List<Member> attendedMemberList = attendanceService.findMembersBySession(sessionToFinalize.getId());
-                    memberService.refundRegularTicketsAndSaveMembers(attendedMemberList);
+                    for (Member attendee : attendedMemberList) {
+                        TicketDelta delta = memberService.refundRegularTicket(attendee);
+                        ticketLogService.record(attendee, delta, TicketTransactionType.FREE_SESSION_REFUND, sessionToFinalize);
+                    }
+                    memberService.saveMembers(attendedMemberList);
                     yield new EndSessionResponse(attendedMemberList.size(), 0);
                 }
             };

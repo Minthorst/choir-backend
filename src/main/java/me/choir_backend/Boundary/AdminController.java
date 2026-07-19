@@ -4,6 +4,7 @@
     import me.choir_backend.service.MemberService;
     import me.choir_backend.service.SessionLifecycleService;
     import me.choir_backend.service.SessionService;
+    import me.choir_backend.service.TicketLogService;
     import org.springframework.web.bind.annotation.*;
 
     import java.util.List;
@@ -15,11 +16,13 @@
         private final SessionService sessionService;
         private final MemberService memberService;
         private final SessionLifecycleService sessionLifecycleService;
+        private final TicketLogService ticketLogService;
 
-        public AdminController(SessionService sessionService, MemberService memberService, SessionLifecycleService sessionLifecycleService) {
+        public AdminController(SessionService sessionService, MemberService memberService, SessionLifecycleService sessionLifecycleService, TicketLogService ticketLogService) {
             this.sessionService = sessionService;
             this.memberService = memberService;
             this.sessionLifecycleService = sessionLifecycleService;
+            this.ticketLogService = ticketLogService;
         }
 
         @PostMapping("/finalizeSession")
@@ -45,6 +48,11 @@
         @PostMapping("/members/archive")
         public void setMemberArchived(@Valid @RequestBody ArchiveMemberRequest request){
             memberService.setArchived(request.memberId(), request.archived());
+        }
+
+        @GetMapping("/members/{id}/ticketlog")
+        public List<TicketLogEntryResponse> getMemberTicketLog(@PathVariable Long id){
+            return ticketLogService.getFullLog(memberService.getMandatoryMemberById(id));
         }
 
         @GetMapping("/sessions")

@@ -7,6 +7,7 @@ import me.choir_backend.Exception.ResourceNotFoundException;
 import me.choir_backend.model.Attendance;
 import me.choir_backend.model.Member;
 import me.choir_backend.model.Session;
+import me.choir_backend.model.TicketTransactionType;
 import me.choir_backend.repository.MemberRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,13 +25,15 @@ public class MemberService {
     final MemberKeyGeneratorService memberKeyGeneratorService;
     private final AttendanceService attendanceService;
     private final SessionService sessionService;
+    private final TicketLogService ticketLogService;
 
 
-    public MemberService(MemberRepository memberRepository, MemberKeyGeneratorService memberKeyGeneratorService, AttendanceService attendanceService, SessionService sessionService) {
+    public MemberService(MemberRepository memberRepository, MemberKeyGeneratorService memberKeyGeneratorService, AttendanceService attendanceService, SessionService sessionService, TicketLogService ticketLogService) {
         this.memberRepository = memberRepository;
         this.memberKeyGeneratorService = memberKeyGeneratorService;
         this.attendanceService = attendanceService;
         this.sessionService = sessionService;
+        this.ticketLogService = ticketLogService;
     }
 
     public Member getMandatoryMember(String secretKey) {
@@ -85,18 +88,26 @@ public class MemberService {
                 createMemberRequest.regularTickets(),
                 createMemberRequest.commitTickets());
         memberRepository.save(member);
+        ticketLogService.recordInitialBalance(member);
         log.info("Created member '{}'", name);
         return new CreateMemberResponse(memberKey);
     }
 
-    public void reduceMembersTicket(Member member) {
+    public TicketDelta reduceMembersTicket(Member member) {
         int availableCommitTickets = member.getCommitTickets();
         int availableRegularTickets = member.getRegularTickets();
         if (availableCommitTickets > 0) {
             member.setCommitTickets(availableCommitTickets - 1);
+            return new TicketDelta(0, -1);
         } else {
             member.setRegularTickets(availableRegularTickets - 1);
+            return new TicketDelta(-1, 0);
         }
+    }
+
+    public TicketDelta refundRegularTicket(Member member) {
+        member.setRegularTickets(member.getRegularTickets() + 1);
+        return new TicketDelta(1, 0);
     }
 
     public List<GetAdminMemberInfoResponse> getAllMembersWithSecret() {
@@ -117,6 +128,8 @@ public class MemberService {
         member.setRegularTickets(member.getRegularTickets() + addTicketsRequest.regularTickets());
         member.setCommitTickets(member.getCommitTickets() + addTicketsRequest.commitTickets());
         memberRepository.save(member);
+        ticketLogService.record(member, addTicketsRequest.regularTickets(), addTicketsRequest.commitTickets(),
+                TicketTransactionType.ADMIN_ADJUSTMENT, null);
         log.info("Added {} regular / {} commit tickets to member '{}' (now {} / {})",
                 addTicketsRequest.regularTickets(), addTicketsRequest.commitTickets(),
                 member.getName(), member.getRegularTickets(), member.getCommitTickets());
@@ -152,16 +165,6 @@ public class MemberService {
         return memberRepository.findAbsenteesWithCommitTicketsBySession(sessionToFinalize);
     }
 
-
-    public void reduceMembersTicketsAndSaveMembers(List<Member> members) {
-        members.forEach(this::reduceMembersTicket);
-        saveMembers(members);
-    }
-
-    public void refundRegularTicketsAndSaveMembers(List<Member> members) {
-        members.forEach(member -> member.setRegularTickets(member.getRegularTickets() + 1));
-        saveMembers(members);
-    }
 
     public void saveMember(Member member) {
         memberRepository.save(member);

@@ -6,6 +6,7 @@ import me.choir_backend.Boundary.CreateMemberResponse;
 import me.choir_backend.Exception.DuplicateMemberNameException;
 import me.choir_backend.Exception.ResourceNotFoundException;
 import me.choir_backend.model.Member;
+import me.choir_backend.model.TicketTransactionType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -36,6 +37,8 @@ class MemberServiceTest {
     AttendanceService attendanceService;
     @Mock
     SessionService sessionService;
+    @Mock
+    TicketLogService ticketLogService;
 
     @InjectMocks
     MemberService memberService;
@@ -64,36 +67,40 @@ class MemberServiceTest {
         assertEquals(2, saved.getRegularTickets());
         assertEquals(3, saved.getCommitTickets());
         assertEquals("blue-nirvana-17", saved.getSecretKey());
+        verify(ticketLogService).recordInitialBalance(saved);
     }
 
     @Test
     void reduceTicketPrefersCommitTickets() {
         Member member = new Member("Anna", "key", 2, 2);
 
-        memberService.reduceMembersTicket(member);
+        TicketDelta delta = memberService.reduceMembersTicket(member);
 
         assertEquals(1, member.getCommitTickets());
         assertEquals(2, member.getRegularTickets());
+        assertEquals(new TicketDelta(0, -1), delta);
     }
 
     @Test
     void reduceTicketFallsBackToRegularTickets() {
         Member member = new Member("Anna", "key", 1, 0);
 
-        memberService.reduceMembersTicket(member);
+        TicketDelta delta = memberService.reduceMembersTicket(member);
 
         assertEquals(0, member.getCommitTickets());
         assertEquals(0, member.getRegularTickets());
+        assertEquals(new TicketDelta(-1, 0), delta);
     }
 
     @Test
     void reduceTicketAllowsNegativeRegularBalance() {
         Member member = new Member("Anna", "key", 0, 0);
 
-        memberService.reduceMembersTicket(member);
+        TicketDelta delta = memberService.reduceMembersTicket(member);
 
         assertEquals(-1, member.getRegularTickets());
         assertEquals(0, member.getCommitTickets());
+        assertEquals(new TicketDelta(-1, 0), delta);
     }
 
     @Test
@@ -106,6 +113,7 @@ class MemberServiceTest {
         assertEquals(4, member.getRegularTickets());
         assertEquals(3, member.getCommitTickets());
         verify(memberRepository).save(member);
+        verify(ticketLogService).record(member, 3, 2, TicketTransactionType.ADMIN_ADJUSTMENT, null);
     }
 
     @Test
@@ -135,14 +143,12 @@ class MemberServiceTest {
     }
 
     @Test
-    void refundRegularTicketsIncrementsEachMember() {
-        Member anna = new Member("Anna", "key1", 0, 1);
+    void refundRegularTicketIncrementsBalanceAndReportsDelta() {
         Member ben = new Member("Ben", "key2", -1, 0);
 
-        memberService.refundRegularTicketsAndSaveMembers(java.util.List.of(anna, ben));
+        TicketDelta delta = memberService.refundRegularTicket(ben);
 
-        assertEquals(1, anna.getRegularTickets());
         assertEquals(0, ben.getRegularTickets());
-        verify(memberRepository).saveAll(java.util.List.of(anna, ben));
+        assertEquals(new TicketDelta(1, 0), delta);
     }
 }

@@ -9,6 +9,7 @@ import me.choir_backend.Exception.WrongSessionTypeException;
 import me.choir_backend.model.Member;
 import me.choir_backend.model.Session;
 import me.choir_backend.model.SessionType;
+import me.choir_backend.model.TicketTransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,8 @@ class SessionLifecycleServiceTest {
     SessionService sessionService;
     @Mock
     AttendanceService attendanceService;
+    @Mock
+    TicketLogService ticketLogService;
 
     @InjectMocks
     SessionLifecycleService sessionLifecycleService;
@@ -53,12 +56,14 @@ class SessionLifecycleServiceTest {
         when(memberService.getMandatoryMember("key")).thenReturn(member);
         when(sessionService.getActiveSessionForCheckIn()).thenReturn(session);
         when(attendanceService.isAlreadyAttending(member, session)).thenReturn(false);
+        when(memberService.reduceMembersTicket(member)).thenReturn(new TicketDelta(0, -1));
 
         sessionLifecycleService.checkInMember("key");
 
         verify(sessionService).closeStaleSessions();
         verify(memberService).reduceMembersTicket(member);
         verify(memberService).saveMember(member);
+        verify(ticketLogService).record(member, new TicketDelta(0, -1), TicketTransactionType.CHECK_IN, session);
         verify(attendanceService).saveAttendance(member, session);
     }
 
@@ -73,6 +78,7 @@ class SessionLifecycleServiceTest {
                 () -> sessionLifecycleService.checkInMember("key"));
         verify(memberService, never()).reduceMembersTicket(any());
         verify(attendanceService, never()).saveAttendance(any(), any());
+        verify(ticketLogService, never()).record(any(), any(TicketDelta.class), any(), any());
     }
 
     @Test
@@ -107,11 +113,13 @@ class SessionLifecycleServiceTest {
         when(memberService.getMandatoryMemberById(5L)).thenReturn(member);
         when(sessionService.getActiveSessionForCheckIn()).thenReturn(session);
         when(attendanceService.isAlreadyAttending(member, session)).thenReturn(false);
+        when(memberService.reduceMembersTicket(member)).thenReturn(new TicketDelta(0, -1));
 
         DoormanCheckInResponse response = sessionLifecycleService.checkInMemberById(5L);
 
         assertFalse(response.checkedIn());
         verify(memberService).reduceMembersTicket(member);
+        verify(ticketLogService).record(member, new TicketDelta(0, -1), TicketTransactionType.CHECK_IN, session);
         verify(attendanceService).saveAttendance(member, session);
     }
 
@@ -148,8 +156,9 @@ class SessionLifecycleServiceTest {
         assertFalse(session.getOpen());
         assertEquals(SessionType.REGULAR_ONLY, session.getSessionType());
         verify(sessionService).saveSession(session);
-        verify(memberService, never()).reduceMembersTicketsAndSaveMembers(any());
-        verify(memberService, never()).refundRegularTicketsAndSaveMembers(any());
+        verify(memberService, never()).reduceMembersTicket(any());
+        verify(memberService, never()).refundRegularTicket(any());
+        verify(ticketLogService, never()).record(any(), any(TicketDelta.class), any(), any());
     }
 
     @Test
@@ -159,6 +168,7 @@ class SessionLifecycleServiceTest {
         when(sessionService.findMandatorySession(1L)).thenReturn(session);
         when(attendanceService.findMembersBySession(session.getId())).thenReturn(List.of(present));
         when(memberService.findAbsenteesWithCommitTickets(session)).thenReturn(List.of(absentee));
+        when(memberService.reduceMembersTicket(absentee)).thenReturn(new TicketDelta(0, -1));
 
         EndSessionResponse response =
                 sessionLifecycleService.finalizeSession(new EndSessionRequest(1L, SessionType.COMMIT));
@@ -167,7 +177,9 @@ class SessionLifecycleServiceTest {
         assertEquals(1, response.absentCommitMembers());
         assertEquals(SessionType.COMMIT, session.getSessionType());
         verify(attendanceService).saveNoShowAttendance(List.of(absentee), session);
-        verify(memberService).reduceMembersTicketsAndSaveMembers(List.of(absentee));
+        verify(memberService).reduceMembersTicket(absentee);
+        verify(ticketLogService).record(absentee, new TicketDelta(0, -1), TicketTransactionType.NO_SHOW_CHARGE, session);
+        verify(memberService).saveMembers(List.of(absentee));
     }
 
     @Test
@@ -175,12 +187,15 @@ class SessionLifecycleServiceTest {
         Member present = new Member("Anna", "key1", 0, 0);
         when(sessionService.findMandatorySession(1L)).thenReturn(session);
         when(attendanceService.findMembersBySession(session.getId())).thenReturn(List.of(present));
+        when(memberService.refundRegularTicket(present)).thenReturn(new TicketDelta(1, 0));
 
         EndSessionResponse response =
                 sessionLifecycleService.finalizeSession(new EndSessionRequest(1L, SessionType.FREE));
 
         assertEquals(1, response.presentMembers());
         assertEquals(SessionType.FREE, session.getSessionType());
-        verify(memberService).refundRegularTicketsAndSaveMembers(List.of(present));
+        verify(memberService).refundRegularTicket(present);
+        verify(ticketLogService).record(present, new TicketDelta(1, 0), TicketTransactionType.FREE_SESSION_REFUND, session);
+        verify(memberService).saveMembers(List.of(present));
     }
 }
