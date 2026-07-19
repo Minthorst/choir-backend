@@ -42,6 +42,11 @@
             memberService.addTickets(addTicketsRequest);
         }
 
+        @PostMapping("/members/archive")
+        public void setMemberArchived(@Valid @RequestBody ArchiveMemberRequest request){
+            memberService.setArchived(request.memberId(), request.archived());
+        }
+
         @GetMapping("/sessions")
         public List<GetSessionResponse> getAllSessions(){
             return sessionService.getAllSessions();

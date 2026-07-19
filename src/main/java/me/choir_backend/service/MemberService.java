@@ -107,7 +107,7 @@ public class MemberService {
 
     private GetAdminMemberInfoResponse toAdminMemberInfoResponse(Member member, Session activeSession) {
         boolean checkedIn = activeSession != null && attendanceService.isAlreadyAttending(member, activeSession);
-        return new GetAdminMemberInfoResponse(member.getId(), member.getName(), member.getRegularTickets(), member.getCommitTickets(), member.getSecretKey(), checkedIn);
+        return new GetAdminMemberInfoResponse(member.getId(), member.getName(), member.getRegularTickets(), member.getCommitTickets(), member.getSecretKey(), checkedIn, member.isArchived());
     }
 
     @Transactional
@@ -120,6 +120,14 @@ public class MemberService {
         log.info("Added {} regular / {} commit tickets to member '{}' (now {} / {})",
                 addTicketsRequest.regularTickets(), addTicketsRequest.commitTickets(),
                 member.getName(), member.getRegularTickets(), member.getCommitTickets());
+    }
+
+    @Transactional
+    public void setArchived(Long memberId, boolean archived) {
+        Member member = getMandatoryMemberById(memberId);
+        member.setArchived(archived);
+        memberRepository.save(member);
+        log.info("{} member '{}'", archived ? "Archived" : "Reactivated", member.getName());
     }
 
     public List<GetAdminMemberInfoResponse> getAllMembersOfSession(Long sessionId) {

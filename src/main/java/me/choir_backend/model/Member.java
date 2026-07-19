@@ -1,6 +1,7 @@
 package me.choir_backend.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "members")
@@ -14,6 +15,10 @@ public class Member {
 
     private int regularTickets = 0;
     private int commitTickets = 0;
+
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean archived = false;
 
     @Column(unique = true, nullable = false)
     private String name;
@@ -57,6 +62,14 @@ public class Member {
 
     public void setCommitTickets(int commitTickets) {
         this.commitTickets = commitTickets;
+    }
+
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
     }
 
     public Long getId() {
